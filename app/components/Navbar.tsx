@@ -1,12 +1,22 @@
+// app/components/Navbar.tsx
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { FaSearch, FaUser } from 'react-icons/fa';
 import { useUserContext } from '@/context/UserContext';
 
 export default function Navbar() {
-  const { user, setUser, cart, wishlist } = useUserContext();
+  // safely pull wishlist/cart out of context (default to empty arrays)
+  const {
+    user,
+    setUser,
+    cart: ctxCart,
+    wishlist: ctxWishlist,
+  } = useUserContext();
+
+  const cart = Array.isArray(ctxCart) ? ctxCart : [];
+  const wishlist = Array.isArray(ctxWishlist) ? ctxWishlist : [];
 
   const [showDropdown, setShowDropdown] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -16,19 +26,18 @@ export default function Navbar() {
     setShowDropdown(true);
   };
   const handleMouseLeave = () => {
-    timeoutRef.current = setTimeout(() => {
-      setShowDropdown(false);
-    }, 200);
+    timeoutRef.current = setTimeout(() => setShowDropdown(false), 200);
   };
 
-  function handleLogout() {
+  const handleLogout = () => {
     setUser(null);
-  }
+  };
+
+  const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <nav className="w-full bg-white shadow py-2">
       <div className="flex items-center justify-evenly w-full px-4">
-        
         <div className="flex items-center">
           <Link href="/" className="text-xl font-bold text-blue-700">
             SmartCart
@@ -66,7 +75,7 @@ export default function Navbar() {
           </Link>
 
           <Link href="/cart" className="hover:text-blue-600">
-            🛒 {cart.reduce((sum, item) => sum + item.quantity, 0)}
+            🛒 {totalCartItems}
           </Link>
 
           <div
