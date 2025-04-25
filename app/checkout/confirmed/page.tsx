@@ -19,6 +19,9 @@ type Item = {
   productId: number
   quantity: number
   price: number
+  name: string
+  image: string
+  size?: string | null
 }
 
 export default function OrderConfirmedPage() {
@@ -27,26 +30,42 @@ export default function OrderConfirmedPage() {
 
   const [shipping, setShipping] = useState<Shipping | null>(null)
   const [items, setItems] = useState<Item[]>([])
-  const [orderId, setOrderId] = useState<string | null>(null)
   const [newBalance, setNewBalance] = useState<number | null>(null)
 
   useEffect(() => {
-    const s = searchParams.get('shipping')
-    const i = searchParams.get('items')
-    const oid = searchParams.get('orderId')
-    const nb = searchParams.get('newBalance')
-
     try {
-      if (s) setShipping(JSON.parse(s))
-      if (i) setItems(JSON.parse(i))
-      if (oid) setOrderId(oid)
-      if (nb) setNewBalance(Number(nb))
-    } catch {
+      const s = searchParams.get('shipping')
+      const i = searchParams.get('items')
+      const nb = searchParams.get('newBal')
+
+      if (s) {
+        setShipping(JSON.parse(s))
+      }
+      if (i) {
+        const parsed: any[] = JSON.parse(i)
+        const normalized: Item[] = parsed.map((it) => ({
+          productId: Number(it.productId),
+          quantity: Number(it.quantity),
+          price: Number(it.price),
+          name: it.name,
+          image: it.image,
+          size: it.size,
+        }))
+        setItems(normalized)
+      }
+      if (nb) {
+        setNewBalance(Number(nb))
+      }
+
+      if (!s || !i || !nb) {
+        throw new Error('Missing confirmation data')
+      }
+    } catch (err) {
       router.replace('/')
     }
   }, [searchParams, router])
 
-  if (!shipping || items.length === 0 || !orderId || newBalance === null) {
+  if (!shipping || items.length === 0 || newBalance === null) {
     return (
       <>
         <Navbar />
@@ -65,8 +84,6 @@ export default function OrderConfirmedPage() {
       <Navbar />
       <div className="container mx-auto px-4 py-12 space-y-8">
         <h1 className="text-4xl font-bold text-center">Thank you for your order!</h1>
-        <p className="text-center text-gray-600">Order #{orderId} has been placed successfully.</p>
-
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 bg-white rounded-lg shadow p-6">
             <h2 className="text-2xl font-semibold mb-4">Shipping Information</h2>
@@ -89,20 +106,24 @@ export default function OrderConfirmedPage() {
             <h2 className="text-2xl font-semibold mb-4">Order Summary</h2>
             <div className="space-y-4 mb-6">
               {items.map((it, idx) => (
-                <div key={idx} className="flex justify-between text-gray-700">
-                  <span>Product #{it.productId} × {it.quantity}</span>
-                  <span>${it.price * it.quantity}</span>
+                <div key={`${it.productId}-${it.size ?? 'none'}`} className="flex justify-between text-gray-700">
+                  <span>
+                    {it.name}
+                    {it.size ? ` — Size: ${it.size}` : ''}
+                    {'  × '}{it.quantity}
+                  </span>
+                  <span>${(it.price * it.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
             <div className="border-t pt-4 space-y-2 text-gray-800">
               <div className="flex justify-between">
                 <span className="font-medium">Subtotal:</span>
-                <span>${subtotal}</span>
+                <span>${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Your new balance:</span>
-                <span>${newBalance}</span>
+                <span>${newBalance.toFixed(2)}</span>
               </div>
             </div>
           </div>

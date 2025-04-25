@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { FaStar, FaRegStar } from 'react-icons/fa';
@@ -13,13 +13,13 @@ const anton = Anton({
 type Product = {
   id: number;
   name: string;
-  image: string; 
+  image: string;
   price: number;
-  rating: number;    
+  rating: number;
   reviews_count: number;
 };
 
-function FeaturedProducts() {
+export default function FeaturedProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -44,16 +44,15 @@ function FeaturedProducts() {
   }, []);
 
   const renderStars = (rating: number) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      if (i <= Math.floor(rating)) {
-        stars.push(<FaStar key={i} className="text-yellow-500" />);
-      } else {
-        stars.push(<FaRegStar key={i} className="text-yellow-500" />);
-      }
-    }
-    return stars;
+    return Array.from({ length: 5 }, (_, i) => (
+      i < Math.floor(rating)
+        ? <FaStar key={i} className="text-yellow-500" />
+        : <FaRegStar key={i} className="text-yellow-500" />
+    ));
   };
+
+  if (loading) return <p className="text-center py-8">Loading…</p>;
+  if (error) return <p className="text-center text-red-500 py-8">{error}</p>;
 
   return (
     <section className="mx-auto max-w-screen-xl py-8 px-4">
@@ -61,38 +60,38 @@ function FeaturedProducts() {
         <h2 className="text-center my-3">FEATURED PRODUCTS</h2>
       </div>
 
-      {loading && <p className="text-center">Loading...</p>}
-      {error && <p className="text-center text-red-500">{error}</p>}
-
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 my-6">
         {products.map((product) => (
-          <Link 
-            key={product.id} 
-            href={`/product/${product.id}`} 
-            className="cursor-pointer border rounded-lg p-4 shadow hover:shadow-md transition-shadow flex flex-col"
+          <Link
+            key={product.id}
+            href={`/product/${product.id}`}
+            className="flex flex-col h-full cursor-pointer border rounded-lg p-4 shadow hover:shadow-md transition-shadow"
           >
-            <img
-              src={product.image || 'https://via.placeholder.com/300x400?text=No+Image'}
-              alt={product.name}
-              className="w-full h-64 object-cover rounded mb-4"
-            />
-            <h3 className="text-lg font-semibold mb-1">{product.name}</h3>
+            <div className="w-full h-64 overflow-hidden rounded mb-4">
+              <img
+                src={product.image || 'https://via.placeholder.com/300x400?text=No+Image'}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <h3 className="text-lg font-semibold mb-1 truncate">{product.name}</h3>
             <div className="flex items-center space-x-1 mb-2">
               {renderStars(product.rating)}
               <span className="text-sm text-gray-500">({product.reviews_count})</span>
             </div>
-            <p className="text-xl font-bold mb-2">${product.price}</p>
+            <p className="text-xl font-bold mt-auto">${product.price}</p>
           </Link>
         ))}
       </div>
 
       <div className="text-center mt-8">
-        <button className="px-6 py-2 border border-black rounded-md font-semibold hover:bg-black hover:text-white transition-colors">
+        <Link
+          href="/search?page=1"
+          className="inline-block px-6 py-2 border rounded-md font-semibold hover:bg-black hover:text-white transition-colors"
+        >
           View All
-        </button>
+        </Link>
       </div>
     </section>
   );
 }
-
-export default FeaturedProducts;

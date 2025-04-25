@@ -1,20 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server'
+import { query } from '@/lib/db'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { id: productId } = await params;
+    const { id: productId } = params
 
     const productResult = await query(
       `
       SELECT 
-        p.product_id AS id, 
+        p.product_id   AS id, 
         p.name, 
         p.description, 
         p.price, 
-        p.stock_qty AS quantity, 
+        p.stock_qty    AS quantity, 
         p.condition,
-        c.name AS category, 
+        c.name         AS category, 
         p.tags,
         p.sizes,
         p.view_count,
@@ -30,25 +33,28 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       WHERE p.product_id = $1
       `,
       [productId]
-    );
+    )
 
     if (productResult.rowCount === 0) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
-    const product = productResult.rows[0];
+    const product = productResult.rows[0]
 
     const imagesResult = await query(
       `SELECT image_url FROM product_images WHERE product_id = $1`,
       [productId]
-    );
-    const images = imagesResult.rows.map((row: any) => row.image_url);
+    )
+    const images = imagesResult.rows.map((row: any) => row.image_url)
 
-    const productWithImages = { ...product, images };
+    const productWithImages = { ...product, images }
 
-    return NextResponse.json({ product: productWithImages });
+    return NextResponse.json({ product: productWithImages })
   } catch (err) {
-    console.error('Error fetching product details:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error fetching product details:', err)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }

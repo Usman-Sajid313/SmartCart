@@ -3,10 +3,10 @@ import { query } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
-    const distinctProductsQuery = `
+    const sql = `
       WITH distinctProducts AS (
         SELECT DISTINCT ON (p.category_id)
-          p.product_id AS id,
+          p.product_id   AS id,
           p.name,
           p.price,
           COALESCE((
@@ -15,8 +15,16 @@ export async function GET(req: NextRequest) {
             WHERE product_id = p.product_id
             LIMIT 1
           ), '') AS image,
-          0 AS rating,
-          0 AS reviews_count,
+          COALESCE((
+            SELECT ROUND(AVG(r.rating)::numeric,1)
+            FROM reviews r
+            WHERE r.product_id = p.product_id
+          ), 0) AS rating,
+          COALESCE((
+            SELECT COUNT(*)
+            FROM reviews r
+            WHERE r.product_id = p.product_id
+          ), 0) AS reviews_count,
           p.stock_qty,
           p.category_id
         FROM products p
@@ -26,8 +34,8 @@ export async function GET(req: NextRequest) {
         SELECT COUNT(*) AS cnt FROM distinctProducts
       ),
       additionalProducts AS (
-        SELECT 
-          p.product_id AS id,
+        SELECT
+          p.product_id   AS id,
           p.name,
           p.price,
           COALESCE((
@@ -36,8 +44,16 @@ export async function GET(req: NextRequest) {
             WHERE product_id = p.product_id
             LIMIT 1
           ), '') AS image,
-          0 AS rating,
-          0 AS reviews_count,
+          COALESCE((
+            SELECT ROUND(AVG(r.rating)::numeric,1)
+            FROM reviews r
+            WHERE r.product_id = p.product_id
+          ), 0) AS rating,
+          COALESCE((
+            SELECT COUNT(*)
+            FROM reviews r
+            WHERE r.product_id = p.product_id
+          ), 0) AS reviews_count,
           p.stock_qty,
           p.category_id
         FROM products p
@@ -49,11 +65,13 @@ export async function GET(req: NextRequest) {
       UNION ALL
       SELECT * FROM additionalProducts;
     `;
-
-    const result = await query(distinctProductsQuery);
+    const result = await query(sql);
     return NextResponse.json({ products: result.rows });
   } catch (err) {
     console.error('Error fetching featured products:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

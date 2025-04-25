@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FaStar, FaRegStar, FaMinus, FaPlus } from 'react-icons/fa';
+import { FaStar, FaRegStar, FaMinus, FaPlus, FaHeart } from 'react-icons/fa';
 
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
@@ -20,11 +20,19 @@ type Review = {
 type Product = {
   id: number;
   name: string;
-  price: number;
   description: string;
+  price: number;
+  quantity: number;
   rating: number;
   images: string[];
   sizes?: { size: string; stock: number }[];
+};
+
+type RelatedProduct = {
+  id: number;
+  name: string;
+  price: number;
+  image: string;
 };
 
 type CartItem = {
@@ -36,8 +44,8 @@ type CartItem = {
   size?: string;
 };
 
-type RelatedProduct = {
-  id: number;
+type WishlistItem = {
+  productId: number;
   name: string;
   price: number;
   image: string;
@@ -46,7 +54,13 @@ type RelatedProduct = {
 export default function ProductPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user, cart, setCart } = useUserContext();
+  const {
+    user,
+    cart,
+    setCart,
+    wishlist,
+    setWishlist,
+  } = useUserContext();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -56,23 +70,30 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState<number>(1);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string>('');
+
+  const [hasPurchased, setHasPurchased] = useState<boolean>(false);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
 
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSummary, setAiSummary] = useState<string>('');
+
   useEffect(() => {
     if (!id) return;
-    async function load() {
+    async function loadAll() {
       try {
         const p = await fetch(`/api/products/${id}`);
         if (!p.ok) throw new Error('Could not fetch product');
         const { product } = await p.json();
-        setProduct(product as Product);
-        if ((product as Product).sizes?.length) {
-          setSelectedSize((product as Product).sizes![0].size);
+        setProduct(product);
+        if (product.sizes?.length) {
+          setSelectedSize(product.sizes[0].size);
         }
+
         const rv = await fetch(`/api/products/${id}/reviews`);
         if (!rv.ok) throw new Error('Could not fetch reviews');
         const { reviews } = await rv.json();
@@ -80,8 +101,8 @@ export default function ProductPage() {
 
         const rl = await fetch(`/api/products/${id}/related`);
         if (!rl.ok) throw new Error('Could not fetch related');
-        const { products: related } = await rl.json();
-        setRelated(related || []);
+        const { products: rel } = await rl.json();
+        setRelated(rel || []);
       } catch (e: any) {
         console.error(e);
         setError(e.message);
@@ -89,8 +110,38 @@ export default function ProductPage() {
         setLoading(false);
       }
     }
-    load();
+    loadAll();
   }, [id]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/cart', {
+      headers: { 'x-user-id': String(user.user_id) },
+    })
+      .then(res => res.json())
+      .then(data => setCart(data.items || []))
+      .catch(console.error);
+  }, [user, setCart]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/wishlist', {
+      headers: { 'x-user-id': String(user.user_id) },
+    })
+      .then(res => res.json())
+      .then(data => setWishlist(data.items || []))
+      .catch(console.error);
+  }, [user, setWishlist]);
+
+  useEffect(() => {
+    if (!user || !id) return;
+    fetch(`/api/orders/purchased?productId=${id}`, {
+      headers: { 'x-user-id': String(user.user_id) },
+    })
+      .then(res => res.json())
+      .then(json => setHasPurchased(!!json.hasPurchased))
+      .catch(() => setHasPurchased(false));
+  }, [user, id]);
 
   if (loading) {
     return (
@@ -113,6 +164,15 @@ export default function ProductPage() {
     );
   }
 
+  const availableStock = product.sizes
+    ? product.sizes.find(s => s.size === selectedSize)?.stock ?? 0
+    : product.quantity;
+
+  const averageRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : product.rating;
+
   const renderStars = (r: number) =>
     Array.from({ length: 5 }, (_, i) =>
       i < Math.floor(r) ? (
@@ -122,7 +182,15 @@ export default function ProductPage() {
       )
     );
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
+    if (availableStock === 0) {
+      alert('Sorry, this item is out of stock.');
+      return;
+    }
+    if (quantity > availableStock) {
+      alert(`Cannot add more than ${availableStock} to your cart.`);
+      return;
+    }
     if (product.sizes && !selectedSize) {
       alert('Please select a size.');
       return;
@@ -137,23 +205,51 @@ export default function ProductPage() {
       size: product.sizes ? selectedSize : undefined,
     };
 
-    const idx = cart.findIndex(
-      (c) =>
-        c.productId === newItem.productId &&
-        (product.sizes ? c.size === newItem.size : true)
-    );
-
-    let updated: CartItem[];
-    if (idx > -1) {
-      updated = cart.map((c, i) =>
-        i === idx ? { ...c, quantity: c.quantity + newItem.quantity } : c
-      );
-    } else {
-      updated = [...cart, newItem];
+    try {
+      const res = await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': String(user?.user_id),
+        },
+        body: JSON.stringify(newItem),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to add to cart');
+      }
+      const { items } = await res.json();
+      setCart(items);
+      router.push('/cart');
+    } catch (e: any) {
+      alert(e.message);
     }
+  };
 
-    setCart(updated);
-    router.push('/cart');
+  const handleAddToWishlist = async () => {
+    if (!user) {
+      alert('Please log in to add to your wishlist.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/wishlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': String(user.user_id),
+        },
+        body: JSON.stringify({ productId: product.id } as Pick<WishlistItem, 'productId'>),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to add to wishlist');
+      }
+      const { items } = await res.json();
+      setWishlist(items);
+      alert('Added to wishlist!');
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -174,13 +270,31 @@ export default function ProductPage() {
       });
       if (!res.ok) throw new Error('Failed to submit review');
       const { review } = await res.json();
-      setReviews((r) => [...r, review]);
+      setReviews(r => [...r, review]);
       setShowReviewForm(false);
       setReviewRating(5);
       setReviewComment('');
     } catch (err: any) {
-      console.error(err);
-      alert(err.message || 'Error');
+      alert(err.message);
+    }
+  };
+
+  const handleAiSummarize = async () => {
+    setAiError(null);
+    setAiLoading(true);
+    try {
+      const res = await fetch('/api/ai/reviews-summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Summarization failed');
+      setAiSummary(json.summary || '— no summary returned —');
+    } catch (err: any) {
+      setAiError(err.message);
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -216,19 +330,18 @@ export default function ProductPage() {
           <div className="flex-1">
             <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
             <div className="flex items-center mb-2">
-              {renderStars(product.rating)}
-              <span className="ml-2 text-gray-600">{product.rating}</span>
+              {renderStars(averageRating)}
+              <span className="ml-2 text-gray-600">{averageRating}</span>
             </div>
-            <p className="text-2xl font-semibold mb-4">
-              ${product.price}
-            </p>
-            <p className="mb-4 text-gray-700">{product.description}</p>
+            <p className="text-2xl font-semibold mb-4">${product.price}</p>
+            <p className="mb-2 text-gray-700">{product.description}</p>
+            <p className="mb-4 text-gray-600">Available: {availableStock}</p>
 
-            {product.sizes && product.sizes.length > 0 && (
+            {product.sizes && (
               <div className="mb-4">
                 <p className="font-semibold mb-2">Sizes:</p>
                 <div className="flex gap-2">
-                  {product.sizes.map((s) => (
+                  {product.sizes.map(s => (
                     <button
                       key={s.size}
                       onClick={() => setSelectedSize(s.size)}
@@ -250,27 +363,43 @@ export default function ProductPage() {
               <span className="font-semibold">Quantity:</span>
               <div className="flex items-center border rounded">
                 <button
-                  onClick={() => setQuantity((q) => Math.max(q - 1, 1))}
+                  onClick={() => setQuantity(q => Math.max(q - 1, 1))}
                   className="px-3 py-2 hover:bg-gray-100"
                 >
                   <FaMinus />
                 </button>
                 <span className="px-4">{quantity}</span>
                 <button
-                  onClick={() => setQuantity((q) => q + 1)}
-                  className="px-3 py-2 hover:bg-gray-100"
+                  onClick={() =>
+                    setQuantity(q => Math.min(q + 1, availableStock))
+                  }
+                  disabled={quantity >= availableStock}
+                  className="px-3 py-2 hover:bg-gray-100 disabled:opacity-50"
                 >
                   <FaPlus />
                 </button>
               </div>
             </div>
 
-            <button
-              onClick={handleAddToCart}
-              className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Add to Cart
-            </button>
+            <div className="flex gap-4 mb-8">
+              <button
+                onClick={handleAddToCart}
+                disabled={availableStock === 0}
+                className={`flex-1 px-6 py-3 rounded text-white ${availableStock === 0
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+              >
+                {availableStock === 0 ? 'Out of Stock' : 'Add to Cart'}
+              </button>
+              <button
+                onClick={handleAddToWishlist}
+                className="flex-1 px-6 py-3 rounded text-white bg-red-600 hover:bg-red-700"
+              >
+                <FaHeart className="inline mr-2" />
+                Add to Wishlist
+              </button>
+            </div>
           </div>
         </div>
 
@@ -280,50 +409,68 @@ export default function ProductPage() {
           </h2>
           <div className="flex gap-4 mb-4">
             <button
-              onClick={() => alert('AI Summarizer coming soon!')}
-              className="px-4 py-2 border rounded hover:bg-gray-100"
+              onClick={handleAiSummarize}
+              disabled={reviews.length === 0 || aiLoading}
+              className="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50"
             >
-              AI Summarizer
+              {aiLoading ? 'Summarizing…' : 'AI Summarizer'}
             </button>
             <button
               onClick={() =>
-                setReviews((r) => [...r].sort((a, b) => b.rating - a.rating))
+                setReviews(r => [...r].sort((a, b) => b.rating - a.rating))
               }
               className="px-4 py-2 border rounded hover:bg-gray-100"
             >
               Sort Reviews
             </button>
-            <button
-              onClick={() => {
-                if (!user) {
-                  alert('Please log in to write a review.');
-                  return;
-                }
-                setShowReviewForm(true);
-              }}
-              className="px-4 py-2 border rounded hover:bg-gray-100"
-            >
-              Write a Review
-            </button>
+            {user ? (
+              hasPurchased ? (
+                <button
+                  onClick={() => setShowReviewForm(true)}
+                  className="px-4 py-2 border rounded hover:bg-gray-100"
+                >
+                  Write a Review
+                </button>
+              ) : (
+                <span className="text-gray-500 italic">
+                  Only purchasers can write a review.
+                </span>
+              )
+            ) : (
+              <span className="text-gray-500 italic">
+                Log in to write a review.
+              </span>
+            )}
           </div>
-          {!reviews.length && (
-            <p className="text-gray-600">There are currently no reviews.</p>
-          )}
-          {reviews.map((rev) => (
-            <div
-              key={rev.id}
-              className="border rounded-lg p-4 mb-4 bg-white"
-            >
-              <div className="flex justify-between items-center mb-1">
-                <span className="font-semibold">{rev.userName}</span>
-                <div className="flex">{renderStars(rev.rating)}</div>
-              </div>
-              <p className="text-sm text-gray-500 mb-1">{rev.date}</p>
-              <p>{rev.comment}</p>
-            </div>
-          ))}
 
-          {showReviewForm && (
+          {aiError && <p className="text-red-500 mb-4">Error: {aiError}</p>}
+
+          {aiSummary && (
+            <div className="border rounded-lg p-4 mb-6 bg-gray-50">
+              <h3 className="font-semibold mb-2">Overall Summary:</h3>
+              <p>{aiSummary}</p>
+            </div>
+          )}
+
+          {reviews.length === 0 ? (
+            <p className="text-gray-600">No reviews yet.</p>
+          ) : (
+            reviews.map(rev => (
+              <div
+                key={rev.id}
+                className="border rounded-lg p-4 mb-4 bg-white"
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-semibold">{rev.userName}</span>
+                  <div className="flex">{renderStars(rev.rating)}</div>
+                </div>
+                <p className="text-sm text-gray-500 mb-1">{rev.date}</p>
+                <p>{rev.comment}</p>
+              </div>
+            ))
+          )}
+
+          {showReviewForm && hasPurchased && (
             <form
               onSubmit={handleReviewSubmit}
               className="border rounded-lg p-6 bg-white"
@@ -336,21 +483,19 @@ export default function ProductPage() {
                   min={1}
                   max={5}
                   value={reviewRating}
-                  onChange={(e) =>
-                    setReviewRating(Number(e.target.value))
-                  }
+                  onChange={e => setReviewRating(+e.target.value)}
                   className="w-20 border rounded px-2 py-1"
+                  required
                 />
               </div>
               <div className="mb-4">
                 <label className="block mb-1">Comment</label>
                 <textarea
                   value={reviewComment}
-                  onChange={(e) =>
-                    setReviewComment(e.target.value)
-                  }
+                  onChange={e => setReviewComment(e.target.value)}
                   rows={3}
                   className="w-full border rounded px-2 py-1"
+                  required
                 />
               </div>
               <div className="flex gap-4">
@@ -374,11 +519,9 @@ export default function ProductPage() {
 
         {related.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-4">
-              You might also like
-            </h2>
+            <h2 className="text-2xl font-bold mb-4">You might also like</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-              {related.map((p) => (
+              {related.map(p => (
                 <Link
                   key={p.id}
                   href={`/product/${p.id}`}

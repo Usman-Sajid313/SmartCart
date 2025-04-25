@@ -1,6 +1,5 @@
 import AnnouncementBar from "./components/AnnouncementBar";
 import Navbar from "./components/Navbar";
-import PromoBanner from "./components/PromoBanner";
 import FeaturedProducts from "./components/FeaturedProducts";
 import BrowseByCategory from "./components/BrowseByCategory";
 import ConfusedSection from "./components/ConfusedSection";
@@ -11,7 +10,6 @@ export default function HomePage() {
     <div>
       <AnnouncementBar />
       <Navbar />
-      <PromoBanner />
       <FeaturedProducts/>
       <BrowseByCategory/>
       <ConfusedSection/>

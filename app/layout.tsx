@@ -1,23 +1,26 @@
-import './globals.css';
-import { UserProvider } from '@/context/UserContext';
+import './globals.css'
+import { Inter } from 'next/font/google'
+import { UserProvider } from '@/context/UserContext'
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'SmartCart',
-  description: 'Your e-commerce platform',
-};
+  description: 'Your e‑commerce platform',
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className={inter.className}>
         <UserProvider>
           {children}
         </UserProvider>
       </body>
     </html>
-  );
+  )
 }
