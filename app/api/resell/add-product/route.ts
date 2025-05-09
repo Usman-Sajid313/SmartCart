@@ -1,21 +1,22 @@
-import { NextRequest, NextResponse } from "next/server";
-import path from "path";
-import fs from "fs/promises";
-import { query } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server"
+import { query } from "@/lib/db"
+import { supabase } from "@/lib/supabaseClient"
+
+export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
-  const userId = Number(req.headers.get("x-user-id"));
+  const userId = Number(req.headers.get("x-user-id"))
   if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { searchParams } = new URL(req.url);
-  const orderItemId = Number(searchParams.get("orderItemId"));
+  const { searchParams } = new URL(req.url)
+  const orderItemId = Number(searchParams.get("orderItemId"))
   if (!orderItemId) {
     return NextResponse.json(
       { error: "orderItemId is required" },
       { status: 400 }
-    );
+    )
   }
 
   const sql = `
@@ -30,43 +31,35 @@ export async function GET(req: NextRequest) {
     JOIN products p ON oi.product_id = p.product_id
     WHERE oi.order_item_id = $1
       AND o.user_id = $2
-  `;
-  const result = await query(sql, [orderItemId, userId]);
+  `
+  const result = await query(sql, [orderItemId, userId])
   if (result.rowCount === 0) {
-    return NextResponse.json({ error: "Not found or not yours" }, { status: 404 });
+    return NextResponse.json({ error: "Not found or not yours" }, { status: 404 })
   }
-  return NextResponse.json(result.rows[0]);
+  return NextResponse.json(result.rows[0])
 }
 
 export async function POST(req: NextRequest) {
-  const userId = Number(req.headers.get("x-user-id"));
+  const userId = Number(req.headers.get("x-user-id"))
   if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {
-    const formData = await req.formData();
-
-    const orderItemId = Number(formData.get("orderItemId") as string);
-    const name = formData.get("name") as string;
-    const description = (formData.get("description") as string) || null;
-    const price = parseFloat(formData.get("price") as string);
-
-    const quantity = 1;
-
-    const catRaw = formData.get("category_id") as string | null;
+    const formData = await req.formData()
+    const orderItemId = Number(formData.get("orderItemId") as string)
+    const name = formData.get("name") as string
+    const description = (formData.get("description") as string) || null
+    const price = parseFloat(formData.get("price") as string)
+    const quantity = 1
+    const catRaw = formData.get("category_id") as string | null
     if (!catRaw) {
-      return NextResponse.json(
-        { error: "Missing category_id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing category_id" }, { status: 400 })
     }
-    const category_id = parseInt(catRaw, 10);
-
-    const tagsStr = formData.get("tags") as string | null;
-    const tags = tagsStr ? tagsStr.split(",").map((t) => t.trim()) : null;
-    const condition = "used";
-
+    const category_id = parseInt(catRaw, 10)
+    const tagsStr = formData.get("tags") as string | null
+    const tags = tagsStr ? tagsStr.split(",").map(t => t.trim()) : null
+    const condition = "used"
     const insertProduct = `
       INSERT INTO products
         (name, description, price, stock_qty, condition,
@@ -74,9 +67,9 @@ export async function POST(req: NextRequest) {
       VALUES
         ($1,$2,$3,$4,$5,$6,$7,$8,$9)
       RETURNING
-        product_id, name, description, price, stock_qty,
+        product_id, name, description, price, stock_qty AS quantity,
         category_id, tags, condition, original_order_item_id
-    `;
+    `
     const prodRes = await query(insertProduct, [
       name,
       description,
@@ -87,31 +80,46 @@ export async function POST(req: NextRequest) {
       tags,
       userId,
       orderItemId,
-    ]);
-    const newProd = prodRes.rows[0];
-    const newPid = newProd.product_id;
+    ])
+    if (prodRes.rowCount === 0) {
+      throw new Error("Failed to insert resell product")
+    }
+    const newProd = prodRes.rows[0]
+    const newPid = newProd.product_id
 
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadsDir, { recursive: true });
+    const imageFiles = formData.getAll("images") as File[]
+    for (const file of imageFiles) {
+      if (!(file instanceof File)) continue
 
-    for (const file of formData.getAll("images")) {
-      if (file instanceof File) {
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const filename = `${Date.now()}-${file.name}`;
-        await fs.writeFile(path.join(uploadsDir, filename), buffer);
-        await query(
-          `INSERT INTO product_images (product_id, image_url)
-             VALUES ($1,$2)`,
-          [newPid, `/uploads/${filename}`]
-        );
-      }
+      const buffer = Buffer.from(await file.arrayBuffer())
+      const key = `${newPid}/${Date.now()}-${file.name}`
+
+      const { error: upErr } = await supabase
+        .storage
+        .from("product-images")
+        .upload(key, buffer, { contentType: file.type })
+      if (upErr) throw upErr
+
+      const { data } = supabase
+        .storage
+        .from("product-images")
+        .getPublicUrl(key)
+      const publicUrl = data.publicUrl
+      if (!publicUrl) throw new Error("Could not retrieve public URL")
+
+      await query(
+        `INSERT INTO product_images (product_id, image_url)
+           VALUES ($1,$2)`,
+        [newPid, publicUrl]
+      )
     }
 
-    return NextResponse.json({ product: newProd });
-  } catch (err) {
+    return NextResponse.json({ product: newProd })
+  } catch (err: any) {
+    console.error("🛑 resell/add-product error:", err.message || err)
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: err.message || "Internal Server Error" },
       { status: 500 }
-    );
+    )
   }
 }
