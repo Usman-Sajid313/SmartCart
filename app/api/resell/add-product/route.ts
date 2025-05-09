@@ -109,7 +109,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ product: newProd });
   } catch (err) {
-    console.error("Error in resell POST:", err);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

@@ -3,7 +3,7 @@ import { query } from '@/lib/db'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params } : any
 ) {
   try {
     const { id: productId } = params
@@ -51,7 +51,6 @@ export async function GET(
 
     return NextResponse.json({ product: productWithImages })
   } catch (err) {
-    console.error('Error fetching product details:', err)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

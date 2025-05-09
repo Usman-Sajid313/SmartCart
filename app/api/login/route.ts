@@ -58,12 +58,11 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       path: '/',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, 
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return res;
   } catch (err) {
-    console.error('Login error:', err);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -18,8 +18,8 @@ type CartItem = {
 
 export default function CartPage() {
   const router = useRouter()
-  const { user, setCart: setCartContext } = useUserContext()    
-  const [cart, setCartState] = useState<CartItem[]>([])         
+  const { user, setCart: setCartContext } = useUserContext()
+  const [cart, setCartState] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,9 +40,8 @@ export default function CartPage() {
       }
       const { items } = await res.json()
       setCartState(items || [])
-      setCartContext(items || [])           
+      setCartContext(items || [])
     } catch (err: any) {
-      console.error('fetchCart error', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -74,7 +73,6 @@ export default function CartPage() {
       }
       await fetchCart()
     } catch (err) {
-      console.error('updateQuantity error', err)
     }
   }
 
@@ -97,7 +95,6 @@ export default function CartPage() {
       }
       await fetchCart()
     } catch (err) {
-      console.error('removeItem error', err)
     }
   }
 
@@ -218,11 +215,10 @@ export default function CartPage() {
           <button
             onClick={handleCheckout}
             disabled={cart.length === 0}
-            className={`w-full py-3 rounded text-white ${
-              cart.length === 0
+            className={`w-full py-3 rounded text-white ${cart.length === 0
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
-            }`}
+              }`}
           >
             Go to Checkout →
           </button>

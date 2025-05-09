@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useUserContext } from '@/context/UserContext'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, Legend,
+  BarChart, Bar,
 } from 'recharts'
 import { Card, CardHeader, CardContent } from '@/app/components/card'
 import { Spinner } from '@/app/components/spinner'
@@ -19,7 +19,7 @@ export default function SellerDashboard() {
   const { user } = useUserContext()
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string|null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [totalProducts, setTotalProducts] = useState(0)
   const [totalOrders,   setTotalOrders]   = useState(0)
   const [totalRevenue,  setTotalRevenue]  = useState(0)
@@ -40,7 +40,7 @@ export default function SellerDashboard() {
         const res = await fetch('/api/seller/dashboard', {
           headers: {
             'Content-Type': 'application/json',
-            'x-user-id': String(user.user_id),
+            'x-user-id': String(user!.user_id),
           }
         })
         if (res.status === 401) {

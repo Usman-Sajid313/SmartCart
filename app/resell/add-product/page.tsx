@@ -1,10 +1,12 @@
 'use client'
 
+
 import React, { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Navbar from '@/app/components/Navbar'
 import Footer from '@/app/components/Footer'
 import { useUserContext } from '@/context/UserContext'
+
 
 type Prefill = {
   orderItemId: number
@@ -37,21 +39,23 @@ export default function ResellForm() {
       return
     }
     fetch(`/api/resell/add-product?orderItemId=${oid}`, {
-      headers: { 'x-user-id': String(user.user_id) }
+      headers: { 'x-user-id': String(user.user_id) },
     })
-      .then(async (res) => {
+      .then(async res => {
         const json = await res.json()
         if (!res.ok) throw new Error(json.error || 'Failed to load')
         return json as Prefill
       })
-      .then((data) => {
+      .then(data => {
         setPrefill(data)
         setError('')
       })
-      .catch((err) => {
+      .catch(err => {
         setError(err.message)
       })
   }, [user, searchParams, router])
+
+  if (!user) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -76,7 +80,7 @@ export default function ResellForm() {
     fd.append('quantity', '1')
     fd.append('category_id', String(prefill.categoryId))
     fd.append('tags', tags)
-    Array.from(images).forEach((file) => fd.append('images', file))
+    Array.from(images).forEach(file => fd.append('images', file))
 
     const res = await fetch('/api/resell/add-product', {
       method: 'POST',
@@ -137,7 +141,7 @@ export default function ResellForm() {
             <label className="block mb-1">Description</label>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={e => setDescription(e.target.value)}
               className="w-full border p-2 rounded"
               rows={3}
               required
@@ -154,7 +158,7 @@ export default function ResellForm() {
                 step="0.01"
                 max={prefill.purchasePrice}
                 value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                onChange={e => setPrice(e.target.value)}
                 className="w-full border p-2 rounded"
                 required
               />
@@ -176,7 +180,7 @@ export default function ResellForm() {
               type="text"
               value={
                 ['Clothing', 'Cosmetics', 'Electronics'][
-                prefill.categoryId - 1
+                  prefill.categoryId - 1
                 ]
               }
               readOnly
@@ -189,7 +193,7 @@ export default function ResellForm() {
             <input
               type="text"
               value={tags}
-              onChange={(e) => setTags(e.target.value)}
+              onChange={e => setTags(e.target.value)}
               className="w-full border p-2 rounded"
             />
           </div>
@@ -199,7 +203,7 @@ export default function ResellForm() {
             <input
               type="file"
               multiple
-              onChange={(e) => setImages(e.target.files)}
+              onChange={e => setImages(e.target.files)}
               className="w-full"
               required
             />

@@ -24,14 +24,15 @@ export async function GET(req: NextRequest) {
     SELECT 1
       FROM orders o
       JOIN order_items oi ON o.order_id = oi.order_id
-     WHERE o.user_id   = $1
+     WHERE o.user_id    = $1
        AND oi.product_id = $2
      LIMIT 1
     `,
     [userId, productId]
   )
 
+  const count = res.rowCount ?? 0
   return NextResponse.json({
-    hasPurchased: res.rowCount > 0
+    hasPurchased: count > 0
   })
 }

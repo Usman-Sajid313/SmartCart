@@ -43,7 +43,7 @@ export default function WishlistPage() {
       if (!res.ok) throw new Error(`GET /api/wishlist failed (${res.status})`)
       const { items: basic }: { items: WishlistItem[] } = await res.json()
 
-      setWishlist(basic)
+      setWishlist(basic.map(wi => wi.productId))
 
       const detailed = await Promise.all(
         basic.map(async wi => {
@@ -70,7 +70,6 @@ export default function WishlistPage() {
 
       setItems(detailed)
     } catch (err: any) {
-      console.error('loadWishlist error', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -80,7 +79,7 @@ export default function WishlistPage() {
   useEffect(() => {
     if (!user) return router.push('/login')
     loadWishlist()
-  }, [user])
+  }, [user, router])
 
   const deleteItem = async (productId: number) => {
     try {
@@ -90,9 +89,7 @@ export default function WishlistPage() {
       })
       if (!res.ok) throw new Error(`DELETE /api/wishlist/${productId} failed`)
       await loadWishlist()
-    } catch (err) {
-      console.error('deleteItem error', err)
-    }
+    } catch { }
   }
 
   const moveToCart = async (item: WishlistRow) => {
@@ -114,7 +111,6 @@ export default function WishlistPage() {
         const err = await res.json()
         throw new Error(err.error || 'Failed to move to cart')
       }
-
       await deleteItem(item.productId)
     } catch (err: any) {
       alert(err.message)

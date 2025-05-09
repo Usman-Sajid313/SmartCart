@@ -104,7 +104,6 @@ export default function ProductPage() {
         const { products: rel } = await rl.json();
         setRelated(rel || []);
       } catch (e: any) {
-        console.error(e);
         setError(e.message);
       } finally {
         setLoading(false);

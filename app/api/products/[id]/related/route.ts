@@ -1,9 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server'
+import { query } from '@/lib/db'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  req: NextRequest,
+  { params }: any
+) {
   try {
-    const { id: productId } = await params;
+    const productId = params.id
 
     const relatedResult = await query(
       `
@@ -28,10 +31,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       LIMIT 4
       `,
       [productId]
-    );
-    return NextResponse.json({ products: relatedResult.rows || [] });
+    )
+
+    return NextResponse.json({ products: relatedResult.rows || [] })
   } catch (err) {
-    console.error('Error fetching related products:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error in GET /api/products/[id]/related:', err)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }

@@ -10,9 +10,11 @@ async function getCartId(userId: number) {
   return res.rows[0].cart_id
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { productId: string } }) {
+export async function PATCH(req: NextRequest, { params }: any) {
   const userId = req.headers.get('x-user-id')
-  if (!userId) return NextResponse.json({ error: 'Auth required' }, { status: 401 })
+  if (!userId) {
+    return NextResponse.json({ error: 'Auth required' }, { status: 401 })
+  }
 
   const { quantity } = await req.json()
   if (typeof quantity !== 'number' || quantity < 1) {
@@ -31,9 +33,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { productId:
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { productId: string } }) {
+export async function DELETE(req: NextRequest, { params }: any) {
   const userId = req.headers.get('x-user-id')
-  if (!userId) return NextResponse.json({ error: 'Auth required' }, { status: 401 })
+  if (!userId) {
+    return NextResponse.json({ error: 'Auth required' }, { status: 401 })
+  }
 
   const cartId = await getCartId(+userId)
 

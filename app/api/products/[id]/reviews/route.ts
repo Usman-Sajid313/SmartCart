@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server'
+import { query } from '@/lib/db'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: any
 ) {
   try {
-    const { id: productId } = await params;
-    
+    const { id: productId } = await params
+
     const reviewsResult = await query(
       `
       SELECT 
@@ -22,28 +22,27 @@ export async function GET(
       ORDER BY r.review_date DESC
       `,
       [productId]
-    );
+    )
 
-    return NextResponse.json({ reviews: reviewsResult.rows || [] });
-  } catch (error: any) {
-    console.error("Error fetching reviews:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ reviews: reviewsResult.rows || [] })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: any
 ) {
   try {
-    const { id: productId } = await params;
-    
-    const { rating, comment, userId } = await req.json();
+    const { id: productId } = await params
+
+    const { rating, comment, userId } = await req.json()
     if (!rating || !comment || !userId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
-      );
+      )
     }
 
     const insertResult = await query(
@@ -53,20 +52,23 @@ export async function POST(
       RETURNING review_id AS id, rating, comment, to_char(review_date, 'Mon DD, YYYY') AS date
       `,
       [productId, userId, rating, comment]
-    );
-    
-    const newReview = insertResult.rows[0];
-    
-    const userResult = await query(`SELECT name FROM users WHERE user_id = $1`, [userId]);
-    if (userResult.rowCount > 0) {
-      newReview.userName = userResult.rows[0].name;
+    )
+
+    const newReview = insertResult.rows[0]
+
+    const userResult = await query(
+      `SELECT name FROM users WHERE user_id = $1`,
+      [userId]
+    )
+    const count = userResult.rowCount ?? 0
+    if (count > 0) {
+      newReview.userName = userResult.rows[0].name
     } else {
-      newReview.userName = "Anonymous";
+      newReview.userName = "Anonymous"
     }
-    
-    return NextResponse.json({ review: newReview });
-  } catch (error: any) {
-    console.error("Error submitting review:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+
+    return NextResponse.json({ review: newReview })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

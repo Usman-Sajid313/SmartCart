@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";                                  
+import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,                          
-  baseURL: "https://api.groq.com/openai/v1",                 
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 });
 
 const MODEL_NAME =
-  process.env.GROQ_CHAT_MODEL ?? "llama3-8b-8192";           
+  process.env.GROQ_CHAT_MODEL ?? "llama3-8b-8192";
 
 const SYSTEM_PROMPT = `
 You are **Sadaora GiftBot**, the AI shopping assistant for our marketplace.
@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(completion, { status: 200 });
   } catch (err) {
-    console.error("GiftBot error ➜", err);
     return NextResponse.json({ error: "internal error" }, { status: 500 });
   }
 }

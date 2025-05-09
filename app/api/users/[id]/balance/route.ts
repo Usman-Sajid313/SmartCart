@@ -3,7 +3,7 @@ import { query } from '@/lib/db'
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params } : any
 ) {
   const userId = params.id
   const result = await query(

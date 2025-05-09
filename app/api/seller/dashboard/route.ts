@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
       [sellerId]
     )
     const totalProducts = Number(prodRes.rows[0].total_products)
+
     const ordersRes = await query(
       `SELECT COUNT(DISTINCT o.order_id) AS total_orders
          FROM orders o
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
       [sellerId]
     )
     const totalOrders = Number(ordersRes.rows[0].total_orders)
+
     const revenueRes = await query(
       `SELECT COALESCE(SUM(oi.price * oi.quantity),0) AS total_revenue
          FROM order_items oi
@@ -33,6 +35,7 @@ export async function GET(req: NextRequest) {
       [sellerId]
     )
     const totalRevenue = Number(revenueRes.rows[0].total_revenue)
+
     const dailyRes = await query(
       `SELECT
          to_char(o.order_date, 'YYYY-MM-DD') AS day,
@@ -46,7 +49,8 @@ export async function GET(req: NextRequest) {
       ORDER BY day`,
       [sellerId]
     )
-    const dailySales = dailyRes.rows.map(r => ({
+    // Explicitly type 'r' to avoid implicit-any
+    const dailySales = dailyRes.rows.map((r: any) => ({
       day: r.day,
       sales: Number(r.sales_count),
     }))
@@ -64,7 +68,7 @@ export async function GET(req: NextRequest) {
       LIMIT 5`,
       [sellerId]
     )
-    const topProducts = topRes.rows.map(r => ({
+    const topProducts = topRes.rows.map((r: any) => ({
       id: r.product_id,
       name: r.name,
       sold: Number(r.sold_qty),
@@ -78,7 +82,7 @@ export async function GET(req: NextRequest) {
         ORDER BY stock_qty ASC`,
       [sellerId]
     )
-    const lowStock = lowRes.rows.map(r => ({
+    const lowStock = lowRes.rows.map((r: any) => ({
       id: r.product_id,
       name: r.name,
       stock: Number(r.stock_qty),
@@ -93,7 +97,6 @@ export async function GET(req: NextRequest) {
       lowStock,
     })
   } catch (err) {
-    console.error('Error in seller dashboard API:', err)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

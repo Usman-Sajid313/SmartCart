@@ -51,12 +51,10 @@ export default function ManageItems() {
     fetch(`/api/seller/products?user_id=${user.user_id}`)
       .then((res) => res.json())
       .then((data) => {
-        console.log("Fetched products:", data.products);
         setProducts(data.products || []);
         setLoading(false);
       })
-      .catch((err) => {
-        console.error("Error fetching products:", err);
+      .catch(() => {
         setError('Failed to load products');
         setLoading(false);
       });
@@ -65,17 +63,17 @@ export default function ManageItems() {
   const handleDeleteProduct = async (product_id: number) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
     try {
-      const res = await fetch(`/api/seller/delete-product?product_id=${product_id}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(
+        `/api/seller/delete-product?product_id=${product_id}`,
+        { method: 'DELETE' }
+      );
       if (!res.ok) {
         const errData = await res.json();
         setError(errData.error || 'Failed to delete product');
         return;
       }
       setProducts(products.filter((p) => p.product_id !== product_id));
-    } catch (err) {
-      console.error("Error deleting product:", err);
+    } catch {
       setError('Something went wrong. Please try again.');
     }
   };
@@ -123,10 +121,13 @@ export default function ManageItems() {
         return;
       }
       const data = await res.json();
-      setProducts(products.map((p) => p.product_id === data.product.product_id ? data.product : p));
+      setProducts(
+        products.map((p) =>
+          p.product_id === data.product.product_id ? data.product : p
+        )
+      );
       setEditingProduct(null);
-    } catch (err) {
-      console.error("Error editing product:", err);
+    } catch {
       setError('Something went wrong. Please try again.');
     }
   };
@@ -138,7 +139,6 @@ export default function ManageItems() {
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    console.log("Add product form submitted");
     if (!user) {
       setError('User not found.');
       return;
@@ -166,22 +166,17 @@ export default function ManageItems() {
     if (newCategory.toLowerCase() === 'clothing') {
       formData.append('sizes', JSON.stringify(newSizes));
     }
-    for (let pair of formData.entries()) {
-      console.log(pair[0] + ': ' + pair[1]);
-    }
     try {
       const res = await fetch('/api/seller/add-product', {
         method: 'POST',
         body: formData,
       });
-      console.log("API response status:", res.status);
       if (!res.ok) {
         const errData = await res.json();
         setError(errData.error || 'Failed to add product');
         return;
       }
       const data = await res.json();
-      console.log("Product added:", data.product);
       setProducts([...products, data.product]);
       setNewProductName('');
       setNewDescription('');
@@ -191,8 +186,7 @@ export default function ManageItems() {
       setNewTags('');
       setNewImages(null);
       setNewSizes([]);
-    } catch (err) {
-      console.error("Error in adding product:", err);
+    } catch {
       setError('Something went wrong. Please try again.');
     }
   };
@@ -200,10 +194,10 @@ export default function ManageItems() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Manage Items</h1>
-      
+
       {loading && <p>Loading...</p>}
       {error && <p className="text-red-500">{error}</p>}
-      
+
       <table className="w-full border-collapse mb-8">
         <thead>
           <tr className="bg-gray-200">

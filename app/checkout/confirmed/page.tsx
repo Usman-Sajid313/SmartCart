@@ -29,38 +29,31 @@ export default function OrderConfirmedPage() {
   const router = useRouter()
 
   const [shipping, setShipping] = useState<Shipping | null>(null)
-  const [items, setItems] = useState<Item[]>([])
+  const [items, setItems]         = useState<Item[]>([])
   const [newBalance, setNewBalance] = useState<number | null>(null)
 
   useEffect(() => {
     try {
-      const s = searchParams.get('shipping')
-      const i = searchParams.get('items')
+      const s  = searchParams.get('shipping')
+      const i  = searchParams.get('items')
       const nb = searchParams.get('newBal')
 
-      if (s) {
-        setShipping(JSON.parse(s))
-      }
+      if (s)  setShipping(JSON.parse(s))
       if (i) {
-        const parsed: any[] = JSON.parse(i)
-        const normalized: Item[] = parsed.map((it) => ({
+        const parsed = JSON.parse(i) as any[]
+        setItems(parsed.map(it => ({
           productId: Number(it.productId),
-          quantity: Number(it.quantity),
-          price: Number(it.price),
-          name: it.name,
-          image: it.image,
-          size: it.size,
-        }))
-        setItems(normalized)
+          quantity:  Number(it.quantity),
+          price:     Number(it.price),
+          name:      it.name,
+          image:     it.image,
+          size:      it.size,
+        })))
       }
-      if (nb) {
-        setNewBalance(Number(nb))
-      }
+      if (nb) setNewBalance(Number(nb))
 
-      if (!s || !i || !nb) {
-        throw new Error('Missing confirmation data')
-      }
-    } catch (err) {
+      if (!s || !i || !nb) throw new Error('Missing confirmation data')
+    } catch {
       router.replace('/')
     }
   }, [searchParams, router])
@@ -83,7 +76,9 @@ export default function OrderConfirmedPage() {
     <>
       <Navbar />
       <div className="container mx-auto px-4 py-12 space-y-8">
-        <h1 className="text-4xl font-bold text-center">Thank you for your order!</h1>
+        <h1 className="text-4xl font-bold text-center">
+          Thank you for your order!
+        </h1>
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 bg-white rounded-lg shadow p-6">
             <h2 className="text-2xl font-semibold mb-4">Shipping Information</h2>
@@ -105,12 +100,16 @@ export default function OrderConfirmedPage() {
           <div className="flex-1 bg-white rounded-lg shadow p-6">
             <h2 className="text-2xl font-semibold mb-4">Order Summary</h2>
             <div className="space-y-4 mb-6">
-              {items.map((it, idx) => (
-                <div key={`${it.productId}-${it.size ?? 'none'}`} className="flex justify-between text-gray-700">
+              {items.map(it => (
+                <div
+                  key={`${it.productId}-${it.size ?? 'none'}`}
+                  className="flex justify-between text-gray-700"
+                >
                   <span>
                     {it.name}
                     {it.size ? ` — Size: ${it.size}` : ''}
-                    {'  × '}{it.quantity}
+                    {' × '}
+                    {it.quantity}
                   </span>
                   <span>${(it.price * it.quantity).toFixed(2)}</span>
                 </div>

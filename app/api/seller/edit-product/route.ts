@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import nodemailer from 'nodemailer';
+import { NextRequest, NextResponse } from 'next/server'
+import { query } from '@/lib/db'
+import nodemailer from 'nodemailer'
 
 function buildPriceDropEmail(
   userName: string,
@@ -9,7 +9,7 @@ function buildPriceDropEmail(
   newPrice: number,
   productId: number
 ) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#333">
       <h2 style="text-align:center;color:#0052cc">Price Drop Alert!</h2>
@@ -33,12 +33,12 @@ function buildPriceDropEmail(
       </p>
       <p style="font-size:12px;color:#777;">— The SmartCart Team</p>
     </div>
-  `;
+  `
 }
 
 export async function PATCH(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json()
     const {
       product_id,
       name,
@@ -48,26 +48,20 @@ export async function PATCH(req: NextRequest) {
       category_id,
       tags,
       sizes,
-    } = body;
+    } = body
 
     if (!product_id) {
-      return NextResponse.json(
-        { error: 'Missing product_id' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing product_id' }, { status: 400 })
     }
 
     const oldRes = await query(
       `SELECT price FROM products WHERE product_id = $1`,
       [product_id]
-    );
+    )
     if (!oldRes.rows.length) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
-    const oldPrice = +oldRes.rows[0].price;
+    const oldPrice = +oldRes.rows[0].price
 
     const updateQuery = `
       UPDATE products SET
@@ -82,7 +76,7 @@ export async function PATCH(req: NextRequest) {
       WHERE product_id = $1
       RETURNING product_id, name, description, price, stock_qty AS quantity,
                 category_id, tags, sizes, condition, created_at, updated_at
-    `;
+    `
     const values = [
       product_id,
       name,
@@ -92,14 +86,11 @@ export async function PATCH(req: NextRequest) {
       category_id,
       tags,
       sizes ? JSON.stringify(sizes) : null,
-    ];
-    const result = await query(updateQuery, values);
+    ]
+    const result = await query(updateQuery, values)
 
     if (result.rowCount === 0) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
     if (newPrice < oldPrice) {
@@ -111,7 +102,7 @@ export async function PATCH(req: NextRequest) {
         WHERE wi.product_id = $1
         `,
         [product_id]
-      );
+      )
 
       const transporter = nodemailer.createTransport({
         service: 'gmail',
@@ -119,7 +110,7 @@ export async function PATCH(req: NextRequest) {
           user: process.env.GMAIL_USER!,
           pass: process.env.GMAIL_PASS!,
         },
-      });
+      })
 
       for (const { id: userId, userName, email } of wlRes.rows) {
         const html = buildPriceDropEmail(
@@ -128,7 +119,7 @@ export async function PATCH(req: NextRequest) {
           oldPrice,
           newPrice,
           product_id
-        );
+        )
 
         await transporter
           .sendMail({
@@ -137,24 +128,23 @@ export async function PATCH(req: NextRequest) {
             subject: `Price Drop: "${name}" is now $${newPrice}`,
             html,
           })
-          .catch(err =>
+          .catch((error: any) => {
             console.error(
-              `Failed to send price-drop email to user ${userId}:`,
-              err
+              `Failed to send price-drop email to user ${userId} (${email}):`,
+              error
             )
-          );
+          })
       }
     }
 
     return NextResponse.json({
       message: 'Product updated successfully',
       product: result.rows[0],
-    });
+    })
   } catch (err: any) {
-    console.error('Error editing product:', err);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    );
+    )
   }
 }

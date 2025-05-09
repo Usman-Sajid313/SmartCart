@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const name = formData.get('name') as string;
-    const description = formData.get('description') as string | null; 
+    const description = formData.get('description') as string | null;
     const priceStr = formData.get('price') as string;
     const price = parseFloat(priceStr);
     const quantityStr = formData.get('quantity') as string;
@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
       try {
         sizes = JSON.stringify(JSON.parse(sizesRaw));
       } catch (error) {
-        console.error('Error parsing sizes JSON:', error);
       }
     }
     const condition = 'new';
@@ -54,7 +53,6 @@ export async function POST(req: NextRequest) {
     try {
       await fs.mkdir(uploadsDir, { recursive: true });
     } catch (err) {
-      console.error('Error creating uploads directory:', err);
     }
 
     for (const file of imageFiles) {
@@ -74,7 +72,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ message: 'Product added successfully', product: newProduct });
   } catch (err) {
-    console.error('Error adding product:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

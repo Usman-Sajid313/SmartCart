@@ -37,7 +37,6 @@ export default function FeaturedProducts() {
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Error fetching featured products:", err);
         setError('Failed to load featured products.');
         setLoading(false);
       });

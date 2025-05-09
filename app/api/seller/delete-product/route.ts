@@ -11,7 +11,6 @@ export async function DELETE(req: NextRequest) {
     await query(`DELETE FROM products WHERE product_id = $1`, [productId]);
     return NextResponse.json({ message: 'Product deleted successfully' });
   } catch (err) {
-    console.error('Error deleting product:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

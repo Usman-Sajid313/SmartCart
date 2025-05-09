@@ -20,7 +20,9 @@ function buildOrderConfirmationEmail(
   }>,
   newBalance: number
 ) {
-  const itemsRows = items.map(it => `
+  const itemsRows = items
+    .map(
+      (it) => `
     <tr>
       <td style="padding:8px;border:1px solid #ddd">
         ${it.name}${it.size ? ` (${it.size})` : ''}
@@ -29,10 +31,12 @@ function buildOrderConfirmationEmail(
         ${it.quantity}
       </td>
       <td style="padding:8px;border:1px solid #ddd;text-align:right">
-        \$${(it.price * it.quantity)}
+        \$${it.price * it.quantity}
       </td>
     </tr>
-  `).join('')
+  `
+    )
+    .join('')
 
   return `
   <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#333">
@@ -107,12 +111,12 @@ export async function POST(req: NextRequest) {
     [ids]
   )
 
-  const productMap = new Map<number, { name: string, price: number, seller_id: number }>()
+  const productMap = new Map<number, { name: string; price: number; seller_id: number }>()
   for (const r of prodRes.rows) {
     productMap.set(r.product_id, {
       name: r.name,
       price: +r.price,
-      seller_id: r.seller_id
+      seller_id: r.seller_id,
     })
   }
 
@@ -125,10 +129,7 @@ export async function POST(req: NextRequest) {
     }
     const line = meta.price * it.quantity
     total += line
-    sellerTotals.set(
-      meta.seller_id,
-      (sellerTotals.get(meta.seller_id) || 0) + line
-    )
+    sellerTotals.set(meta.seller_id, (sellerTotals.get(meta.seller_id) || 0) + line)
   }
 
   try {
@@ -142,16 +143,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Insufficient balance' }, { status: 400 })
     }
 
-    await query(
-      `UPDATE users SET balance=balance-$1 WHERE user_id=$2`,
-      [total, buyerId]
-    )
+    await query(`UPDATE users SET balance=balance-$1 WHERE user_id=$2`, [total, buyerId])
 
-    for (const [sid, amt] of sellerTotals) {
-      await query(
-        `UPDATE users SET balance=balance+$1 WHERE user_id=$2`,
-        [amt, sid]
-      )
+    // ← Here: convert Map to array for iteration
+    for (const [sid, amt] of Array.from(sellerTotals)) {
+      await query(`UPDATE users SET balance=balance+$1 WHERE user_id=$2`, [amt, sid])
     }
 
     const orderRes = await query(
@@ -159,15 +155,10 @@ export async function POST(req: NextRequest) {
          (user_id,status,total_amount,shipping_address,payment_status)
        VALUES ($1,'PLACED',$2,$3,'PAID')
        RETURNING order_id, order_date`,
-      [
-        buyerId,
-        total,
-        `${shipping.address}, ${shipping.city} ${shipping.postal}`
-      ]
+      [buyerId, total, `${shipping.address}, ${shipping.city} ${shipping.postal}`]
     )
     const orderId = orderRes.rows[0].order_id
     const orderDate = orderRes.rows[0].order_date
-
 
     for (const it of items) {
       const { price } = productMap.get(it.productId)!
@@ -186,10 +177,8 @@ export async function POST(req: NextRequest) {
         )
         if (szRes.rows.length) {
           const { sizes, stock_qty } = szRes.rows[0]
-          const newSizes = (sizes as any[]).map(sObj =>
-            sObj.size === it.size
-              ? { ...sObj, stock: sObj.stock - it.quantity }
-              : sObj
+          const newSizes = (sizes as any[]).map((sObj) =>
+            sObj.size === it.size ? { ...sObj, stock: sObj.stock - it.quantity } : sObj
           )
           await query(
             `UPDATE products
@@ -217,33 +206,27 @@ export async function POST(req: NextRequest) {
 
     await query('COMMIT')
 
-    const newBalRes = await query(
-      `SELECT balance FROM users WHERE user_id=$1`,
-      [buyerId]
-    )
+    const newBalRes = await query(`SELECT balance FROM users WHERE user_id=$1`, [buyerId])
     const newBalance = newBalRes.rows[0]?.balance ?? 0
 
-    const userRes = await query(
-      `SELECT email FROM users WHERE user_id=$1`,
-      [buyerId]
-    )
+    const userRes = await query(`SELECT email FROM users WHERE user_id=$1`, [buyerId])
     const email: string = userRes.rows[0].email
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.GMAIL_USER!,
-        pass: process.env.GMAIL_PASS!
-      }
+        pass: process.env.GMAIL_PASS!,
+      },
     })
 
-    const emailItems = items.map(it => {
+    const emailItems = items.map((it) => {
       const meta = productMap.get(it.productId)!
       return {
         name: meta.name,
         size: it.size,
         quantity: it.quantity,
-        price: meta.price
+        price: meta.price,
       }
     })
 
@@ -256,22 +239,17 @@ export async function POST(req: NextRequest) {
         shipping,
         emailItems,
         newBalance
-      )
+      ),
     })
 
     return NextResponse.json({
       success: true,
       orderId,
       orderDate,
-      newBalance
+      newBalance,
     })
-
   } catch (err: any) {
-    console.error(err)
-    await query('ROLLBACK').catch(() => { })
-    return NextResponse.json(
-      { error: err.message || 'Internal error' },
-      { status: 500 }
-    )
+    await query('ROLLBACK').catch(() => {})
+    return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 })
   }
 }

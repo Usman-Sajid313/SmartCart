@@ -17,7 +17,14 @@ type Product = {
 };
 
 export default function CategoryPage() {
-  const { catname } = useParams();
+  const rawCatname = useParams().catname;
+  const category =
+    typeof rawCatname === "string"
+      ? rawCatname
+      : Array.isArray(rawCatname)
+      ? rawCatname[0]
+      : "";
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -33,13 +40,17 @@ export default function CategoryPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!catname) return;
+    if (!category) return;
     setLoading(true);
     setError("");
 
-    fetch(`/api/products?category=${encodeURIComponent(catname)}&page=${currentPage}`)
-      .then(res => res.json())
-      .then(data => {
+    fetch(
+      `/api/products?category=${encodeURIComponent(
+        category
+      )}&page=${currentPage}`
+    )
+      .then((res) => res.json())
+      .then((data) => {
         if (data.error) {
           setError(data.error);
           setProducts([]);
@@ -49,53 +60,69 @@ export default function CategoryPage() {
           setTotalCount(data.totalCount || 0);
         }
       })
-      .catch(err => {
-        console.error(err);
+      .catch(() => {
         setError("Failed to load category products.");
       })
       .finally(() => setLoading(false));
-  }, [catname, currentPage]);
+  }, [category, currentPage]);
 
   const renderStars = (rating: number) =>
     Array.from({ length: 5 }, (_, i) =>
-      i < Math.floor(rating)
-        ? <FaStar key={i} className="text-yellow-500" />
-        : <FaRegStar key={i} className="text-yellow-500" />
+      i < Math.floor(rating) ? (
+        <FaStar key={i} className="text-yellow-500" />
+      ) : (
+        <FaRegStar key={i} className="text-yellow-500" />
+      )
     );
 
   const totalPages = Math.ceil(totalCount / 8);
 
   const gotoPage = (p: number) => {
     if (p < 1 || p > totalPages) return;
-    router.push(`/category/${encodeURIComponent(catname)}?page=${p}`);
+    router.push(
+      `/category/${encodeURIComponent(category)}?page=${p}`
+    );
   };
 
   return (
     <>
       <Navbar />
       <div className="mx-auto max-w-screen-xl py-8 px-4">
-        <h1 className="text-3xl font-bold capitalize mb-4">{catname} Products</h1>
+        <h1 className="text-3xl font-bold capitalize mb-4">
+          {category} Products
+        </h1>
 
         {loading && <p className="text-center">Loading…</p>}
-        {error && <p className="text-center text-red-500">{error}</p>}
+        {error && (
+          <p className="text-center text-red-500">{error}</p>
+        )}
 
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 my-6">
-          {products.map(product => (
+          {products.map((product) => (
             <Link key={product.id} href={`/product/${product.id}`}>
               <div className="cursor-pointer border rounded-lg p-4 shadow hover:shadow-md transition-shadow flex flex-col h-full justify-between">
                 <img
-                  src={product.image || 'https://via.placeholder.com/300x400?text=No+Image'}
+                  src={
+                    product.image ||
+                    "https://via.placeholder.com/300x400?text=No+Image"
+                  }
                   alt={product.name}
                   className="w-full h-64 object-cover rounded mb-4"
                 />
                 <div>
-                  <h3 className="text-lg font-semibold mb-1">{product.name}</h3>
+                  <h3 className="text-lg font-semibold mb-1">
+                    {product.name}
+                  </h3>
                   <div className="flex items-center space-x-1 mb-2">
                     {renderStars(product.rating)}
-                    <span className="text-sm text-gray-500">({product.reviews_count})</span>
+                    <span className="text-sm text-gray-500">
+                      ({product.reviews_count})
+                    </span>
                   </div>
                 </div>
-                <p className="text-xl font-bold mt-4">${product.price}</p>
+                <p className="text-xl font-bold mt-4">
+                  ${product.price}
+                </p>
               </div>
             </Link>
           ))}
@@ -110,18 +137,21 @@ export default function CategoryPage() {
             Prev
           </button>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
-            <button
-              key={pageNum}
-              onClick={() => gotoPage(pageNum)}
-              className={`px-3 py-1 border rounded ${pageNum === currentPage
-                  ? 'bg-blue-600 text-white'
-                  : 'hover:bg-gray-100'
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+            (pageNum) => (
+              <button
+                key={pageNum}
+                onClick={() => gotoPage(pageNum)}
+                className={`px-3 py-1 border rounded ${
+                  pageNum === currentPage
+                    ? "bg-blue-600 text-white"
+                    : "hover:bg-gray-100"
                 }`}
-            >
-              {pageNum}
-            </button>
-          ))}
+              >
+                {pageNum}
+              </button>
+            )
+          )}
 
           <button
             onClick={() => gotoPage(currentPage + 1)}

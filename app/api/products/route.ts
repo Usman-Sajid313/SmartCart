@@ -137,7 +137,6 @@ export async function GET(req: NextRequest) {
     )
     return NextResponse.json({ products: resultRes.rows, totalCount })
   } catch (err) {
-    console.error('Error fetching products:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

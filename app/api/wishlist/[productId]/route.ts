@@ -3,7 +3,7 @@ import { query } from "@/lib/db";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { productId: string } }
+  { params } : any
 ) {
   const userId = Number(req.headers.get("x-user-id"));
   if (!userId) {

@@ -1,40 +1,48 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useRef } from "react";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 export default function Chatbot() {
-  const [msgs, setMsgs]   = useState<Msg[]>([]);
+  const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
-  const bottomRef         = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgs]);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   async function send() {
     const text = input.trim();
     if (!text) return;
 
-    const newMsgs = [...msgs, { role: "user", content: text }];
+    const userMsg: Msg = { role: "user", content: text };
+    const newMsgs: Msg[] = [...msgs, userMsg];
     setMsgs(newMsgs);
     setInput("");
 
     try {
-      const res  = await fetch("/api/ai/chatbot", {
-        method : "POST",
+      const res = await fetch("/api/ai/chatbot", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body   : JSON.stringify({ messages: newMsgs }),
+        body: JSON.stringify({ messages: newMsgs }),
       });
-      const data   = await res.json();
-      const answer = data.choices?.[0]?.message?.content
-                   ?? "Sorry — no response.";
-      setMsgs((m) => [...m, { role: "assistant", content: answer }]);
+      const data = await res.json();
+      const answer =
+        data.choices?.[0]?.message?.content ?? "Sorry — no response.";
+
+      setMsgs((prev) => [
+        ...prev,
+        { role: "assistant", content: answer },
+      ]);
     } catch {
-      setMsgs((m) => [...m, { role: "assistant", content: "Error contacting AI." }]);
+      setMsgs((prev) => [
+        ...prev,
+        { role: "assistant", content: "Error contacting AI." },
+      ]);
     }
   }
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [msgs]);
 
   return (
     <div className="flex flex-col w-full max-w-md h-[500px] bg-white rounded shadow">
@@ -42,11 +50,10 @@ export default function Chatbot() {
         {msgs.map((m, i) => (
           <div
             key={i}
-            className={`px-3 py-2 rounded-md whitespace-pre-line ${
-              m.role === "user"
+            className={`px-3 py-2 rounded-md whitespace-pre-line ${m.role === "user"
                 ? "bg-blue-100 self-end text-gray-800"
                 : "bg-gray-100 self-start"
-            }`}
+              }`}
             dangerouslySetInnerHTML={{ __html: m.content }}
           />
         ))}

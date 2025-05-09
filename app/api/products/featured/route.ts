@@ -68,7 +68,6 @@ export async function GET(req: NextRequest) {
     const result = await query(sql);
     return NextResponse.json({ products: result.rows });
   } catch (err) {
-    console.error('Error fetching featured products:', err);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

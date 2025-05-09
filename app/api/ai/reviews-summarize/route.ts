@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,                   
-  baseURL: "https://api.groq.com/openai/v1",          
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 });
 const MODEL = process.env.GROQ_MODEL ?? "llama3-8b-8192";
 
@@ -42,7 +42,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ summary });
   } catch (e: any) {
-    console.error("Groq summarizer error:", e);
     return NextResponse.json(
       { error: e?.message || "Summarization failed" },
       { status: 500 }
