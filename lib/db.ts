@@ -1,16 +1,21 @@
 import { Pool } from 'pg'
 
-const pool = new Pool({
+declare global {
+  var __pool__: Pool | undefined
+}
+
+const pool = global.__pool__ ?? new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: { rejectUnauthorized: false },
+  max: 5,
+  idleTimeoutMillis: 30000,
 })
 
+if (process.env.NODE_ENV !== 'production') {
+  global.__pool__ = pool
+}
+
 export async function query(text: string, params?: any[]) {
-  const start = Date.now()
   const res = await pool.query(text, params)
-  const duration = Date.now() - start
-  console.log('executed query', { text, duration, rows: res.rowCount })
   return res
 }
